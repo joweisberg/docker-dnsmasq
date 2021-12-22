@@ -32,20 +32,27 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+runstart=$(date +%s)
+echo "* "
+echo "* Command: $0 $@"
+echo "* Start time: $(date)"
+echo "* "
+
+# https://www.stereolabs.com/docs/docker/building-arm-container-on-x86/
 if [ $(apt list --installed 2> /dev/null | grep qemu | wc -l) -eq 0 ]; then
   echo "* Intstall QEMU user emulation to run ARM containers"
-  sudo apt -y install qemu-user
+  sudo apt -y install qemu-user qemu-user-static binfmt-support
 fi
 
 # To fix this issue the kernel needs to know what to do when requested to run ARM ELF binaries.
 # https://www.balena.io/blog/building-arm-containers-on-any-x86-machine-even-dockerhub/
 if [ ! -f ./.binfmt_misc.txt ]; then
   echo "* Fix issue ARM kernel on x86 machine"
-  sudo umount /proc/sys/fs/binfmt_misc
-  sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
-  echo ':arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:' | sudo tee /proc/sys/fs/binfmt_misc/register > /dev/null 2>&1
-  echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:" | sudo tee /proc/sys/fs/binfmt_misc/register > /dev/null 2>&1
-  docker run --rm --privileged multiarch/qemu-user-static:register --reset > /dev/null 2>&1
+#  sudo umount /proc/sys/fs/binfmt_misc
+#  sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+#  echo ':arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:' | sudo tee /proc/sys/fs/binfmt_misc/register > /dev/null 2>&1
+#  echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:" | sudo tee /proc/sys/fs/binfmt_misc/register > /dev/null 2>&1
+  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null 2>&1
   date > ./.binfmt_misc.txt
 fi
 
@@ -69,13 +76,11 @@ for docker_arch in amd64 arm32 arm64; do
   fi
 done
 
-# Fix for alpine architecture
-sed -i "1s|arm32|arm32v7|g" Dockerfile.arm32
-sed -i "1s|arm64|arm64v8|g" Dockerfile.arm64
+# Fix for system architecture
+sed -i "s|^FROM arm32/|FROM arm32v7/|g" Dockerfile.arm32
+sed -i "s|^FROM arm64/|FROM arm64v8/|g" Dockerfile.arm64
 # Fix for docker-dnsmaq / line 7# webproc: arm32 -> armv7
 sed -i "7s|arm32|armv7|g" Dockerfile.arm32
-
-
 
 echo "* Download OS architecture qmenu"
 # Get qemu-user-static latest version
@@ -111,21 +116,28 @@ for docker_arch in amd64 arm32 arm64; do
     fi
     docker push $DOCKER_USER/$DOCKER_REPO:latest
   fi
-  docker build -f Dockerfile.${docker_arch} -t $DOCKER_USER/$DOCKER_REPO:${docker_arch}-latest .
+  docker build -f Dockerfile.${docker_arch} -t $DOCKER_USER/$DOCKER_REPO:${docker_arch} .
   if [ $? -ne 0 ]; then
-    echo "* Error on building image $DOCKER_USER/$DOCKER_REPO:${docker_arch}-latest"
+    echo "* Error on building image $DOCKER_USER/$DOCKER_REPO:${docker_arch}"
     exit 1
   fi
-  docker push $DOCKER_USER/$DOCKER_REPO:${docker_arch}-latest
+  docker push $DOCKER_USER/$DOCKER_REPO:${docker_arch}
 done
 
 echo "* Building a multi-arch manifest"
-docker manifest create --amend $DOCKER_USER/$DOCKER_REPO:latest $DOCKER_USER/$DOCKER_REPO:amd64-latest $DOCKER_USER/$DOCKER_REPO:arm32-latest $DOCKER_USER/$DOCKER_REPO:arm64-latest
+docker manifest create --amend $DOCKER_USER/$DOCKER_REPO:latest $DOCKER_USER/$DOCKER_REPO:amd64 $DOCKER_USER/$DOCKER_REPO:arm32 $DOCKER_USER/$DOCKER_REPO:arm64
 docker manifest push --purge $DOCKER_USER/$DOCKER_REPO:latest
 
 echo "* Cleanup unnecessary files"
 rm -f Dockerfile.a* qemu-* x86_64_qemu-*
 
+echo "* "
+echo "* End time: $(date)"
+runend=$(date +%s)
+runtime=$((runend-runstart))
+echo "* Elapsed time: $(($runtime / 3600))hrs $((($runtime / 60) % 60))min $(($runtime % 60))sec"
+
+echo "* "
 echo -n "* Remove unused volumes and images? [y/N] "
 read answer
 if [ -n "$(echo $answer | grep -i '^y')" ]; then

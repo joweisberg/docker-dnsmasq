@@ -2,6 +2,25 @@
 
 dnsmasq in a docker container, configurable via a [simple web UI](https://github.com/jpillora/webproc)
 
+### Docker image platform / architecture
+
+The Docker image to use `joweisberg/glances:amd64`.
+Build on Linux Ubuntu 20.04 LTS, Docker 19.03 and above for:
+
+| Platform | Architecture / Tags |
+|---|---|
+| x86_64 | amd64 |
+| aarch64 | arm64 |
+| arm | arm32 |
+
+### Docker
+
+Get the container:
+
+```bash
+$ docker pull joweisberg/glances:amd64
+```
+
 ### Usage
 
 1. Create a [`/opt/dnsmasq.conf`](http://oss.segetech.com/intra/srv/dnsmasq.conf) file on the Docker host
@@ -39,11 +58,11 @@ dnsmasq in a docker container, configurable via a [simple web UI](https://github
    	joweisberg/dnsmasq
    ```
 
-1. Run the container vie docker-compose
+1. Run the container via docker-compose
    ```
    dnsmasq:
     container_name: dnsmasq
-    image: joweisberg/dnsmasq:latest
+    image: joweisberg/dnsmasq:amd64
     volumes:
       - /opt/dnsmasq.conf:/etc/dnsmasq.conf
     restart: unless-stopped
@@ -66,4 +85,12 @@ dnsmasq in a docker container, configurable via a [simple web UI](https://github
    Aliases:
 
    myhost.company has address 10.0.0.2
+   ```
+1. Run the following commands to disable the localhost resolved service
+
+   ```bash
+    sudo systemctl disable systemd-resolved
+    sudo systemctl stop systemd-resolved
+    sudo rm /etc/resolv.conf
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf
    ```
