@@ -1,10 +1,19 @@
 # docker-dnsmasq
 
+This is a fork of [jpillora/docker-dnsmasq](https://github.com/jpillora/docker-dnsmasq/) to extend for arm32, arm64 architecture.
+
+This project:
+
+- GitHub [joweisberg/docker-dnsmasq](https://github.com/joweisberg/docker-dnsmasq/)
+- Docker Hub [joweisberg/dnsmasq](https://hub.docker.com/r/joweisberg/dnsmasq/)
+
+# dnsmasq in a docker container
+
 dnsmasq in a docker container, configurable via a [simple web UI](https://github.com/jpillora/webproc)
 
-### Docker image platform / architecture
+## Docker image platform / architecture
 
-The Docker image to use `joweisberg/glances:amd64`.
+The Docker image to use `joweisberg/glances:latest`.
 Build on Linux Ubuntu 20.04 LTS, Docker 19.03 and above for:
 
 | Platform | Architecture / Tags |
@@ -13,15 +22,15 @@ Build on Linux Ubuntu 20.04 LTS, Docker 19.03 and above for:
 | aarch64 | arm64 |
 | arm | arm32 |
 
-### Docker
+## Docker
 
 Get the container:
 
 ```bash
-$ docker pull joweisberg/glances:amd64
+$ docker pull joweisberg/glances:latest
 ```
 
-### Usage
+## Usage
 
 1. Create a [`/opt/dnsmasq.conf`](http://oss.segetech.com/intra/srv/dnsmasq.conf) file on the Docker host
 
@@ -59,10 +68,11 @@ $ docker pull joweisberg/glances:amd64
    ```
 
 1. Run the container via docker-compose
-   ```
+
+   ```yml
    dnsmasq:
     container_name: dnsmasq
-    image: joweisberg/dnsmasq:amd64
+    image: joweisberg/dnsmasq:latest
     volumes:
       - /opt/dnsmasq.conf:/etc/dnsmasq.conf
     restart: unless-stopped
